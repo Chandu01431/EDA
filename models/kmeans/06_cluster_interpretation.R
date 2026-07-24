@@ -1,79 +1,84 @@
 # ============================================
-# TASK 4.7 & 4.8: CLUSTER INTERPRETATION & STABILITY
+# TASK 4.7 & 4.8: CLUSTER INTERPRETATION & STABILITY ANALYSIS
+# ============================================
+# PREREQUISITE: Run 01_kmeans_setup.R and 04_kmeans_model.R first.
 # ============================================
 
 library(tidyverse)
 
-# Load clustered datasets
+# ---- Load clustered data from train and test ----
 train_df <- read.csv("models/kmeans/train_data_clustered.csv")
-test_df <- read.csv("models/kmeans/test_data_clustered.csv")
+test_df  <- read.csv("models/kmeans/test_data_clustered.csv")
 
-# Combine for overall interpretation
+# Combine both splits for overall profiles
 full_df <- rbind(train_df, test_df)
 
-# ========== CLUSTER PROFILE ANALYSIS ==========
-print("Creating Cluster Profiles (Original Scale)...")
+# ---- TASK 4.7: Cluster Profile Interpretation ----
+cat("--- CLUSTER PROFILES (Full Dataset - 200 customers) ---\n")
 
-# Define cluster labels based on profile centroids
-# Let's compute average values to check centers
-centroids <- full_df %>%
+# Summarize each cluster: count, average demographics, gender split
+profiles <- full_df %>%
   group_by(KMeans_Cluster) %>%
   summarise(
-    Count = n(),
-    Pct = round(n() / nrow(full_df) * 100, 1),
-    Avg_Age = round(mean(Age), 1),
-    Avg_Income = round(mean(Annual_Income), 1),
-    Avg_Spending = round(mean(Spending_Score), 1),
-    Prop_Female = round(sum(Gender == "Female") / n() * 100, 1)
+    Count         = n(),
+    Pct           = round(n() / nrow(full_df) * 100, 1),
+    Avg_Age       = round(mean(Age), 1),
+    Avg_Income    = round(mean(Annual_Income), 1),
+    Avg_Spending  = round(mean(Spending_Score), 1),
+    Pct_Female    = round(sum(Gender == "Female") / n() * 100, 1),
+    .groups = "drop"
   )
 
-print(centroids)
+print(profiles)
 
-# Add custom cluster labels based on demographics:
-# Cluster definitions:
-# High Income, High Spending -> VIP/Loyal Spenders
-# High Income, Low Spending -> Careful/Frugal
-# Medium Income, Medium Spending -> Average Spenders
-# Low Income, High Spending -> Impulsive/Generous
-# Low Income, Low Spending -> Conservative/Sensible
+# ---- Label each cluster based on Income + Spending profile ----
+profiles <- profiles %>%
+  mutate(Segment = case_when(
+    Avg_Income > 70 & Avg_Spending > 70  ~ "VIP / Loyal Spenders",
+    Avg_Income > 70 & Avg_Spending < 40  ~ "Careful / Frugal",
+    Avg_Income < 40 & Avg_Spending > 70  ~ "Impulsive / Generous",
+    Avg_Income < 40 & Avg_Spending < 40  ~ "Conservative / Sensible",
+    TRUE                                  ~ "Average Spenders"
+  ))
 
-centroids$Segment_Name <- case_when(
-  centroids$Avg_Income > 70 & centroids$Avg_Spending > 70 ~ "VIP/Loyal Spenders",
-  centroids$Avg_Income > 70 & centroids$Avg_Spending < 40 ~ "Careful/Frugal",
-  centroids$Avg_Income >= 40 & centroids$Avg_Income <= 70 & centroids$Avg_Spending >= 40 & centroids$Avg_Spending <= 60 ~ "Average Spenders",
-  centroids$Avg_Income < 40 & centroids$Avg_Spending > 70 ~ "Impulsive/Generous",
-  centroids$Avg_Income < 40 & centroids$Avg_Spending < 40 ~ "Conservative/Sensible",
-  TRUE ~ "Other"
-)
+cat("\n--- CLUSTER LABELS ---\n")
+print(profiles[, c("KMeans_Cluster", "Segment", "Count", "Avg_Income", "Avg_Spending")])
 
-print("\nLabeled Cluster Profiles:")
-print(centroids)
+# Save cluster profiles
+write.csv(profiles, "models/kmeans/cluster_profiles.csv", row.names = FALSE)
+cat("✓ Saved: models/kmeans/cluster_profiles.csv\n")
 
-# Save cluster profiles CSV
-write.csv(centroids, "models/kmeans/cluster_profiles.csv", row.names = FALSE)
-print("✓ Saved models/kmeans/cluster_profiles.csv")
+# ---- TASK 4.8: Stability Analysis (Train vs Test) ----
+cat("\n--- STABILITY ANALYSIS: TRAIN vs TEST ---\n")
 
-# ========== STABILITY SUMMARY STATS ==========
-print("\n========== STABILITY ANALYSIS SUMMARY ==========")
-train_profiles <- train_df %>%
+train_profile <- train_df %>%
   group_by(KMeans_Cluster) %>%
-  summarise(Avg_Inc_Train = mean(Annual_Income), Avg_Spend_Train = mean(Spending_Score))
+  summarise(
+    Train_Income   = round(mean(Annual_Income), 1),
+    Train_Spending = round(mean(Spending_Score), 1),
+    .groups = "drop"
+  )
 
-test_profiles <- test_df %>%
+test_profile <- test_df %>%
   group_by(KMeans_Cluster) %>%
-  summarise(Avg_Inc_Test = mean(Annual_Income), Avg_Spend_Test = mean(Spending_Score))
+  summarise(
+    Test_Income   = round(mean(Annual_Income), 1),
+    Test_Spending = round(mean(Spending_Score), 1),
+    .groups = "drop"
+  )
 
-stability <- merge(train_profiles, test_profiles, by = "KMeans_Cluster")
-stability$Inc_Diff <- abs(stability$Avg_Inc_Train - stability$Avg_Inc_Test)
-stability$Spend_Diff <- abs(stability$Avg_Spend_Train - stability$Avg_Spend_Test)
+# Merge to compare side by side
+stability <- merge(train_profile, test_profile, by = "KMeans_Cluster", all = TRUE)
+stability$Inc_Diff    <- abs(stability$Train_Income   - stability$Test_Income)
+stability$Spend_Diff  <- abs(stability$Train_Spending - stability$Test_Spending)
 
 print(stability)
-cat("\nMean Income Difference (Train vs Test):", round(mean(stability$Inc_Diff), 2), "k$\n")
-cat("Mean Spending Difference (Train vs Test):", round(mean(stability$Spend_Diff), 2), "\n")
 
-# ========== SAVE COMBINED CLUSTERED DATASET TO DATA/CLUSTERED ==========
-# Match format CustomerID, Gender, Age, Annual_Income, Spending_Score, Gender_Encoded, KMeans_Cluster
+cat("\nMean Income difference  (Train vs Test):", round(mean(stability$Inc_Diff,   na.rm = TRUE), 2), "k$\n")
+cat("Mean Spending difference (Train vs Test):", round(mean(stability$Spend_Diff, na.rm = TRUE), 2), "points\n")
+
+# ---- Save full clustered dataset ----
 write.csv(full_df, "data/clustered/mall_customers_kmeans.csv", row.names = FALSE)
-print("✓ Saved data/clustered/mall_customers_kmeans.csv")
+cat("✓ Saved: data/clustered/mall_customers_kmeans.csv\n")
 
-print("\n✓ Task 4.7 & 4.8 Complete!")
+cat("\n✓ Task 4.7 & 4.8 Complete!\n")

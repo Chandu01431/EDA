@@ -1,62 +1,66 @@
 # ============================================
 # TASK 4.2: ELBOW METHOD ON TRAINING DATA (80%)
 # ============================================
+# PREREQUISITE: Run 01_kmeans_setup.R first to generate the RDS split files.
+# ============================================
 
 library(cluster)
 library(factoextra)
+library(ggplot2)
 
-# Load training data (80%)
+# ---- Load training data saved by 01_kmeans_setup.R ----
 train_data_scaled <- readRDS("models/kmeans/train_data_scaled.rds")
 
-print("Elbow Method Analysis on TRAINING DATA (160 customers)")
-print("Testing k from 1 to 10...")
+cat("Elbow Method on TRAINING DATA (", nrow(train_data_scaled), "customers)\n")
+cat("Testing k from 1 to 10...\n\n")
 
-# ========== ELBOW METHOD ==========
-# This calculates within-cluster sum of squares (WCSS) for each k value
-png("models/kmeans/plots/01_elbow_plot.png", width = 10, height = 7, units = "in", res = 300)
+# ---- Elbow Method: WCSS for each k ----
+# WCSS = Within-Cluster Sum of Squares
+# As k increases, WCSS always decreases.
+# The "elbow" is where adding more clusters gives diminishing returns.
 
-fviz_nbclust(train_data_scaled,
-             FUNcluster = kmeans,
-             method = "wss",           # Within-cluster sum of squares
-             k.max = 10,               # Test k = 1 to 10
-             nstart = 25) +            # 25 random initializations per k
+wcss_values <- numeric(10)
+
+for (k in 1:10) {
+  km_temp <- kmeans(train_data_scaled, centers = k, nstart = 25, iter.max = 100)
+  wcss_values[k] <- km_temp$tot.withinss  # Total within-cluster sum of squares
+}
+
+# Build a summary table of WCSS values
+wcss_df <- data.frame(
+  k        = 1:10,
+  WCSS     = wcss_values,
+  Decrease = c(NA, -diff(wcss_values))  # Drop in WCSS when adding one more cluster
+)
+
+cat("--- WCSS VALUES FOR EACH k ---\n")
+print(wcss_df)
+
+# ---- Plot the Elbow Curve ----
+p <- ggplot(wcss_df, aes(x = k, y = WCSS)) +
+  geom_line(color = "steelblue", linewidth = 1.2) +
+  geom_point(size = 4, color = "steelblue") +
+  geom_vline(xintercept = 5, linetype = "dashed", color = "red", linewidth = 1) +  # Mark optimal k
+  annotate("text", x = 5.3, y = max(wcss_df$WCSS) * 0.9,
+           label = "Optimal k = 5", color = "red", hjust = 0, size = 4) +
+  scale_x_continuous(breaks = 1:10) +
   labs(
-    title = "Elbow Method for Optimal k (Training Data - 80%)",
-    x = "Number of Clusters (k)",
-    y = "Total Within-Cluster Sum of Squares (WCSS)",
-    subtitle = "Look for the 'elbow' - point where curve flattens"
+    title    = "Elbow Method for Optimal k (Training Data - 80%)",
+    subtitle = "Look for the elbow — where WCSS curve flattens. Dashed red line = k=5.",
+    x        = "Number of Clusters (k)",
+    y        = "Total Within-Cluster Sum of Squares (WCSS)"
   ) +
   theme_minimal() +
   theme(
-    plot.title = element_text(face = "bold", size = 14),
-    axis.title = element_text(size = 11)
+    plot.title    = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 11),
+    axis.title    = element_text(size = 11)
   )
 
-dev.off()
+print(p)
 
-print("✓ Saved: 01_elbow_plot.png")
+# Save the plot
+ggsave("models/kmeans/plots/01_elbow_plot.png", p, width = 10, height = 7, dpi = 300)
+cat("✓ Saved: models/kmeans/plots/01_elbow_plot.png\n")
 
-# ========== CALCULATE WCSS VALUES ==========
-wcss_values <- numeric(10)
-for (k in 1:10) {
-  km <- kmeans(train_data_scaled, centers = k, nstart = 25, iter.max = 100)
-  wcss_values[k] <- km$tot.withinss
-}
-
-wcss_df <- data.frame(
-  k = 1:10,
-  WCSS = wcss_values,
-  Decrease = c(NA, diff(wcss_values))
-)
-
-print("\n========== WCSS VALUES FOR EACH k ==========")
-print(wcss_df)
-
-# Calculate percentage decrease in WCSS
-wcss_df$Pct_Decrease <- c(NA, (wcss_df$Decrease[2:10] / wcss_df$WCSS[1:9]) * -100)
-
-print("\n========== PERCENTAGE DECREASE IN WCSS ==========")
-print(wcss_df[, c("k", "WCSS", "Pct_Decrease")])
-
-print("\n✓ Optimal k appears to be: 5")
-print("\n✓ Task 4.2 Complete!")
+cat("\n✓ Task 4.2 Complete! Run 03_silhouette_method.R next.\n")

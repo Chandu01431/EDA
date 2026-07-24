@@ -1,69 +1,79 @@
 # ============================================
-# TASK 4.6: CLUSTER VISUALIZATION (ggplot2)
+# TASK 4.6: CLUSTER VISUALIZATION
+# ============================================
+# PREREQUISITE: Run 01_kmeans_setup.R and 04_kmeans_model.R first.
 # ============================================
 
 library(ggplot2)
 library(tidyverse)
 
-# Load clustered datasets
+# ---- Load clustered data ----
 train_df <- read.csv("models/kmeans/train_data_clustered.csv")
-test_df <- read.csv("models/kmeans/test_data_clustered.csv")
+test_df  <- read.csv("models/kmeans/test_data_clustered.csv")
 
-# Combine datasets with a source column for comparison plot
-train_df$Set <- "Train (80%)"
-test_df$Set <- "Test (20%)"
-combined_df <- rbind(train_df, test_df)
+# Convert cluster column to factor so ggplot treats it as a discrete category
+train_df$Cluster <- factor(train_df$KMeans_Cluster)
+test_df$Cluster  <- factor(test_df$KMeans_Cluster)
 
-# Define cluster colors and names
-cluster_colors <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00")
+# Use consistent colors for all 5 clusters
+cluster_colors <- c(
+  "1" = "#E41A1C",  # Red
+  "2" = "#377EB8",  # Blue
+  "3" = "#4DAF4A",  # Green
+  "4" = "#984EA3",  # Purple
+  "5" = "#FF7F00"   # Orange
+)
 
-# ========== PLOT: TRAINING CLUSTERS ==========
-p_train <- ggplot(train_df, aes(x = Annual_Income, y = Spending_Score, color = factor(KMeans_Cluster))) +
-  geom_point(size = 3.5, alpha = 0.8) +
+# ---- PLOT 1: Training Cluster Scatter ----
+p1 <- ggplot(train_df, aes(x = Annual_Income, y = Spending_Score, color = Cluster)) +
+  geom_point(size = 3.5, alpha = 0.85) +
   scale_color_manual(values = cluster_colors, name = "Cluster") +
   labs(
-    title = "K-Means Cluster Segments (Training Data)",
-    subtitle = "5 clearly defined segments based on Income & Spending Score",
-    x = "Annual Income (k$)",
-    y = "Spending Score (1-100)"
+    title    = "K-Means Customer Segments — Training Data (80%)",
+    subtitle = "5 customer groups identified based on Annual Income & Spending Score",
+    x        = "Annual Income (k$)",
+    y        = "Spending Score (1–100)"
   ) +
   theme_minimal() +
   theme(
-    plot.title = element_text(face = "bold", size = 14),
-    panel.grid.major = element_line(color = "lightgrey", linetype = "dashed")
+    plot.title    = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 11),
+    axis.title    = element_text(size = 11),
+    panel.grid.major = element_line(color = "grey90", linetype = "dashed")
   )
 
-print(p_train)
+print(p1)
+ggsave("models/kmeans/plots/03_kmeans_clusters.png", p1, width = 10, height = 7, dpi = 300)
+cat("✓ Saved: 03_kmeans_clusters.png\n")
 
-# ========== PLOT: TRAIN VS TEST COMPARISON ==========
-p_comparison <- ggplot(combined_df, aes(x = Annual_Income, y = Spending_Score, color = factor(KMeans_Cluster))) +
-  geom_point(size = 3, alpha = 0.7) +
-  facet_wrap(~Set) +
+# ---- PLOT 2: Train vs Test Side-by-Side Comparison ----
+# Add a label column to combine both splits
+train_df$Split <- "Training (80%)"
+test_df$Split  <- "Testing  (20%)"
+combined_df    <- rbind(train_df, test_df)
+combined_df$Split <- factor(combined_df$Split, levels = c("Training (80%)", "Testing  (20%)"))
+
+p2 <- ggplot(combined_df, aes(x = Annual_Income, y = Spending_Score, color = Cluster)) +
+  geom_point(size = 3, alpha = 0.8) +
+  facet_wrap(~Split) +
   scale_color_manual(values = cluster_colors, name = "Cluster") +
   labs(
-    title = "K-Means Clustering: Train vs Test Distribution",
-    subtitle = "Validation shows cluster patterns are stable and consistent across splits",
-    x = "Annual Income (k$)",
-    y = "Spending Score (1-100)"
+    title    = "K-Means Clustering: Training vs Testing Comparison",
+    subtitle = "Cluster patterns are consistent across both splits — confirms model stability",
+    x        = "Annual Income (k$)",
+    y        = "Spending Score (1–100)"
   ) +
   theme_minimal() +
   theme(
-    plot.title = element_text(face = "bold", size = 14),
-    panel.grid.major = element_line(color = "lightgrey", linetype = "dashed"),
-    strip.text = element_text(face = "bold", size = 12)
+    plot.title    = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 11),
+    axis.title    = element_text(size = 11),
+    strip.text    = element_text(face = "bold", size = 12),
+    panel.grid.major = element_line(color = "grey90", linetype = "dashed")
   )
 
-print(p_comparison)
+print(p2)
+ggsave("models/kmeans/plots/04_kmeans_train_vs_test.png", p2, width = 14, height = 6, dpi = 300)
+cat("✓ Saved: 04_kmeans_train_vs_test.png\n")
 
-# Save plots
-png("models/kmeans/plots/03_kmeans_clusters.png", width = 10, height = 7, units = "in", res = 300)
-print(p_train)
-dev.off()
-print("✓ Saved: 03_kmeans_clusters.png")
-
-png("models/kmeans/plots/04_kmeans_train_vs_test.png", width = 12, height = 6, units = "in", res = 300)
-print(p_comparison)
-dev.off()
-print("✓ Saved: 04_kmeans_train_vs_test.png")
-
-print("\n✓ Task 4.6 Complete!")
+cat("\n✓ Task 4.6 Complete! Run 06_cluster_interpretation.R next.\n")
