@@ -8,71 +8,106 @@ library(factoextra)
 # Load training data
 train_data_scaled <- readRDS("models/kmeans/train_data_scaled.rds")
 
-print("Silhouette Method Analysis on TRAINING DATA (160 customers)")
-print("Testing k from 2 to 10...")
+cat("========================================\n")
+cat(" SILHOUETTE METHOD - TRAINING DATA\n")
+cat("========================================\n")
 
-# ========== SILHOUETTE METHOD ==========
-# Silhouette coefficient measures how similar points are to their own cluster
-# compared to other clusters. Higher = better separation
+# Create folder if it doesn't exist
+if (!dir.exists("models/kmeans")) {
+  dir.create("models/kmeans", recursive = TRUE)
+}
 
-png("models/kmeans/silhouette_plot_training.png", width = 10, height = 7, res = 100)
+# ============================================
+# SILHOUETTE PLOT
+# ============================================
 
-fviz_nbclust(train_data_scaled,
-             FUNcluster = kmeans,
-             method = "silhouette",    # Silhouette method
-             k.max = 10,
-             nstart = 25) +
+png(
+  filename = "models/kmeans/silhouette_plot_training.png",
+  width = 10,
+  height = 7,
+  units = "in",
+  res = 100
+)
+
+fviz_nbclust(
+  train_data_scaled,
+  FUNcluster = kmeans,
+  method = "silhouette",
+  k.max = 10,
+  nstart = 25
+) +
   labs(
     title = "Silhouette Method for Optimal k (Training Data - 80%)",
     x = "Number of Clusters (k)",
     y = "Average Silhouette Width",
-    subtitle = "Peak indicates best k. Values closer to 1 are better."
+    subtitle = "Highest value indicates the optimal number of clusters"
   ) +
   theme_minimal() +
   theme(
     plot.title = element_text(face = "bold", size = 14),
-    axis.title = element_text(size = 11)
+    axis.title = element_text(size = 12)
   )
 
 dev.off()
 
-print("✓ Saved: silhouette_plot_training.png")
+cat("✓ Silhouette plot saved successfully.\n\n")
 
-# ========== CALCULATE SILHOUETTE SCORES ==========
-# Calculate silhouette coefficient for each k
+# ============================================
+# CALCULATE SILHOUETTE SCORES
+# ============================================
 
-silhouette_scores <- numeric(10)
+distance_matrix <- dist(train_data_scaled)
+
+silhouette_scores <- numeric(9)
 
 for (k in 2:10) {
-  km <- kmeans(train_data_scaled, centers = k, nstart = 25, iter.max = 100)
-  ss <- silhouette(km$cluster, dist(train_data_scaled))
-  silhouette_scores[k] <- mean(ss[, 3])  # Average silhouette width
+  
+  km <- kmeans(
+    train_data_scaled,
+    centers = k,
+    nstart = 25,
+    iter.max = 100
+  )
+  
+  ss <- silhouette(km$cluster, distance_matrix)
+  
+  silhouette_scores[k - 1] <- mean(ss[, 3])
 }
 
 silhouette_df <- data.frame(
   k = 2:10,
-  Avg_Silhouette = silhouette_scores[2:10]
+  Avg_Silhouette = round(silhouette_scores, 4)
 )
 
-print("\n========== SILHOUETTE SCORES FOR EACH k ==========")
+cat("========== SILHOUETTE SCORES ==========\n")
 print(silhouette_df)
 
-# Find best k
-best_k <- silhouette_df$k[which.max(silhouette_df$Avg_Silhouette)]
-best_score <- max(silhouette_df$Avg_Silhouette)
+# ============================================
+# BEST K
+# ============================================
 
-print("\n========== SILHOUETTE ANALYSIS ==========")
-print(paste("Best k (highest silhouette score):", best_k))
-print(paste("Silhouette score at k=", best_k, ": ", round(best_score, 3), sep = ""))
+best_index <- which.max(silhouette_df$Avg_Silhouette)
 
-print("\nInterpretation of Silhouette Scores:")
-print("  0.71-1.0 = Strong structure")
-print("  0.51-0.70 = Reasonable structure")
-print("  0.26-0.50 = Weak structure")
-print("  < 0.25 = No substantial structure")
+best_k <- silhouette_df$k[best_index]
+best_score <- silhouette_df$Avg_Silhouette[best_index]
 
-print(paste("\nOur best score (", round(best_score, 3), ") = Reasonable structure", sep = ""))
+cat("\n========================================\n")
+cat("BEST NUMBER OF CLUSTERS\n")
+cat("========================================\n")
+cat("Optimal k :", best_k, "\n")
+cat("Best Silhouette Score :", best_score, "\n\n")
 
-print("\n✓ Silhouette method confirms: k = 5 is optimal")
+cat("Interpretation:\n")
 
-print("\n✓ Task 4.3 Complete!")
+if (best_score >= 0.71) {
+  cat("Strong cluster structure\n")
+} else if (best_score >= 0.51) {
+  cat("Reasonable cluster structure\n")
+} else if (best_score >= 0.26) {
+  cat("Weak cluster structure\n")
+} else {
+  cat("No substantial cluster structure\n")
+}
+
+cat("\nTask 4.3 Completed Successfully.\n")
+

@@ -1,19 +1,21 @@
 # ============================================
-# TASK 4.7: CLUSTER PROFILE INTERPRETATION
+# TASK 4.7: CLUSTER PROFILE INTERPRETATION (FIXED)
 # ============================================
 
 library(tidyverse)
 
-# Load cluster profiles
+# Load data and model
 cluster_profiles_train <- readRDS("models/kmeans/cluster_profiles_train.rds")
 train_df_original <- readRDS("models/kmeans/train_df_original.rds")
+kmeans_model <- readRDS("models/kmeans/kmeans_model_trained.rds")
+
+# Ensure KMeans_Cluster column exists in train_df_original
+train_df_original$KMeans_Cluster <- kmeans_model$cluster
 
 print("========== CLUSTER PROFILE INTERPRETATION ==========")
 print("Interpreting what each cluster represents...\n")
 
 # ========== ASSIGN CLUSTER LABELS ==========
-# Based on the profile characteristics, assign descriptive labels
-
 cluster_labels <- list(
   "1" = "High Income, Low Spending",
   "2" = "High Income, High Spending", 
@@ -45,9 +47,11 @@ for (i in 1:5) {
   
   cat(sprintf("Size: %d customers (%.1f%% of training data)\n", 
               profile$Count, profile$Count / 160 * 100))
-  cat(sprintf("Income Range: $%dk - $%dk (Avg: $%dk)\n", 
+  
+  # FIX: Changed %d to %.0f for numeric/decimal columns in profile
+  cat(sprintf("Income Range: $%.0fk - $%.0fk (Avg: $%.0fk)\n", 
               profile$Min_Income, profile$Max_Income, profile$Avg_Income))
-  cat(sprintf("Spending Range: %d - %d (Avg: %d)\n", 
+  cat(sprintf("Spending Range: %.0f - %.0f (Avg: %.0f)\n", 
               profile$Min_Spending, profile$Max_Spending, profile$Avg_Spending))
   
   # Customer description
@@ -100,6 +104,10 @@ recommendations <- data.frame(
 print(recommendations)
 
 # ========== SAVE RESULTS ==========
+if (!dir.exists("models/kmeans")) {
+  dir.create("models/kmeans", recursive = TRUE)
+}
+
 write.csv(cluster_profiles_train, "models/kmeans/cluster_profiles.csv", row.names = FALSE)
 write.csv(recommendations, "models/kmeans/marketing_recommendations.csv", row.names = FALSE)
 
