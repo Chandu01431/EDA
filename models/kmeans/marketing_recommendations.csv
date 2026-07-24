@@ -1,0 +1,6 @@
+Cluster,Label,Strategy
+1,"High Income, Low Spending","Premium value products, long-term investment offerings, retirement planning services"
+2,"High Income, High Spending","Exclusive member perks, early access to new products, premium brand collaborations"
+3,"Middle Income, Middle Spending","Mid-range product bundles, seasonal promotions, balanced mix of essentials and treats"
+4,"Low Income, High Spending","Buy-now-pay-later options, student/youth discounts, aspirational entry-level products"
+5,"Low Income, Low Spending","Discount programs, loyalty points, budget-friendly bundles, essential item promotions"
