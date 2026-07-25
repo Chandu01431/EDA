@@ -336,7 +336,3 @@ Each numbered `.R` script in a folder is meant to be run sequentially (e.g. `01_
 A summary slide deck of the full project is available at [`presentation/Mall_Customer_Segmentation.pptx`](presentation/Mall_Customer_Segmentation.pptx).
 
 ---
-
-## 👤 Author
-
-**Chandu01431** — [github.com/Chandu01431/EDA](https://github.com/Chandu01431/EDA)
