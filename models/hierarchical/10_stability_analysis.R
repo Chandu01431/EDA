@@ -88,3 +88,4 @@ if (avg_income_diff < 5 && avg_spending_diff < 5 && abs(avg_sil_train - avg_sil_
 
 print("\n✓ Stability analysis complete!")
 print("✓ Task 5.10 Complete!")
+
